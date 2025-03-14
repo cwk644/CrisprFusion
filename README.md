@@ -18,5 +18,11 @@ A sgRNA activity prediction method based on deep learning.
 
 ## Files and directories description
 + [data](https://github.com/cwk644/CrisprFusion/tree/main/data) splited sgRNA datasets used in this study,saved in numpy for training
++ [data_csv] (https://github.com/cwk644/CrisprFusion/tree/main/Datasets) original datasets saved with csv format
++ [bedfeatures] (https://github.com/cwk644/CrisprFusion/tree/main/bedfeatures) part of biological_features,extracted by bedtools
++ [features] (https://github.com/cwk644/CrisprFusion/tree/main/features) part of biological_features
++ [model] (https://github.com/cwk644/CrisprFusion/tree/main/model) saved model of CrisprFusion
+
+  
 
 
