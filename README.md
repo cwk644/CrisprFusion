@@ -1,6 +1,14 @@
 # CrisprFusion
-# an sgRNA activity prediction method
-#
-tensorflow=2.5.0
-numpy=1.19.5
-pandas=1.1.4
+A sgRNA activity prediction method based on deep learning.
+
+## Dependencies
+- Python 3.7+
+- TensorFlow == 2.5.0
+- NumPy == 1.19.5
+- Pandas == 1.1.4
+
+## Quick Start
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/username/CrisprFusion.git
+   cd CrisprFusion
