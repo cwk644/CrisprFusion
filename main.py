@@ -360,30 +360,17 @@ def train_5fold(train_df, test_df, dataset):
 if __name__ == "__main__":
     # 指定数据集
     datasets = ['xCas','eSp','HF1','SpCas9','CRISPRON','HT_Cas9','HypaCas9']  # 或者其他
-    #datasets = ['xCas']  # 仅示例一个数据集
-    #datasets = ['HF1','SpCas9','CRISPRON','HT_Cas9','HypaCas9']
-    #datasets = ['xCas','eSp']
-    datasets=['xCas']
+
     for dataset in datasets:
-        
         iftrain = False
-        ifshap = False  # 移除 Permutation Feature Importance
-        isplot = True
         if iftrain:
             train_df = load_data_func_final(dataset, 'train')
             test_df  = load_data_func_final(dataset, 'test')
             print(f"\n处理数据集: {dataset}")
             print("训练集样本数:", train_df.shape[0])
             print("测试集样本数:", test_df.shape[0])
-            
             score = train_5fold(train_df, test_df, dataset)
             print(f"Dataset {dataset} 5fold Spearman: {score:.4f}")
 
-            restmp = "model/" + dataset + ".npy"
-            res = [222222]
-            res.append(score)
-            c = np.array(res)
-            np.save(restmp, c)
-            print(f"Spearman分数已保存到 {restmp}")
 
 
