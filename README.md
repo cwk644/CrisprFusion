@@ -1,4 +1,5 @@
 # CrisprFusion
+# an sgRNA activity prediction method
 #
 tensorflow=2.5.0
 numpy=1.19.5
