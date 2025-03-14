@@ -16,5 +16,7 @@ A sgRNA activity prediction method based on deep learning.
 ## Tested demo with testsets
 `python main.py`
 
+## Files and directories description
++ [data](https://github.com/cwk644/CrisprFusion/tree/main/data) splited sgRNA datasets used in this study,saved in numpy for training
 
 
