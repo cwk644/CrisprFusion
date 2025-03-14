@@ -22,6 +22,8 @@ A sgRNA activity prediction method based on deep learning.
 + [bedfeatures] (https://github.com/cwk644/CrisprFusion/tree/main/bedfeatures) part of biological_features,extracted by bedtools
 + [features] (https://github.com/cwk644/CrisprFusion/tree/main/features) part of biological_features
 + [model] (https://github.com/cwk644/CrisprFusion/tree/main/model) saved model of CrisprFusion
++ [main.py] (https://github.com/cwk644/CrisprFusion/tree/main/main.py) code for model structure and training
++ [load_data_func.py] (https://github.com/cwk644/CrisprFusion/tree/main/load_data_func.py) code for integration of biological_feature
 
   
 
