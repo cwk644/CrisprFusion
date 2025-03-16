@@ -10,7 +10,7 @@ A sgRNA activity prediction method based on deep learning.
 ## Quick Start
 1. Clone the repository:
    ```bash
-   git clone https://github.com/username/CrisprFusion.git
+   git clone https://github.com/cwk644/CrisprFusion.git
    cd CrisprFusion
 
 ## Tested demo with testsets
