@@ -13,9 +13,6 @@ A sgRNA activity prediction method based on deep learning.
    git clone https://github.com/cwk644/CrisprFusion.git
    cd CrisprFusion
 
-## Tested demo with testsets
-`python main.py`
-
 ## Files and directories description
 + [data](https://github.com/cwk644/CrisprFusion/tree/main/data) splited sgRNA datasets used in this study,saved in numpy for training
 + [data_csv](https://github.com/cwk644/CrisprFusion/tree/main/Datasets) original datasets saved with csv format
@@ -24,6 +21,9 @@ A sgRNA activity prediction method based on deep learning.
 + [model](https://github.com/cwk644/CrisprFusion/tree/main/model) saved model of CrisprFusion
 + [CrisprFusion.py](https://github.com/cwk644/CrisprFusion/tree/main/CrisprFusion.py) code for model structure and training
 + [load_data_func.py](https://github.com/cwk644/CrisprFusion/tree/main/load_data_func.py) code for integration of biological_feature
+
+## how to train and test CrisprFusion
+All train code and test code are included in [CrisprFusion.py](https://github.com/cwk644/CrisprFusion/tree/main/CrisprFusion.py) throught revising codes for different datasets.
 
 
   
