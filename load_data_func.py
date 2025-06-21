@@ -68,7 +68,10 @@ def load_shape_features_inorder(
     feature_name,
     lines_per_sgRNA=1
 ):
-
+    """
+    不做 merge, 按行顺序将形状值放进 DataFrame。
+    若某些特征(如 HelT, Roll) 只有22值, 我们自动在前面补0凑到23。
+    """
     file_path = f'./bedfeatures/{dataset}/{dataset_type}/output_{feature_name}.fasta'
     if not os.path.exists(file_path):
         print(f"警告: shape 文件 {file_path} 不存在，跳过加载 {feature_name}.")
@@ -99,7 +102,7 @@ def load_shape_features_inorder(
                     if len(current_values) < 23:
                         diff = 23 - len(current_values)
                         # 在前面补
-                        current_values = [0.0]*diff + current_values
+                        current_values = [-1.0*1.0]*diff + current_values
                         #print(f"注意: {feature_name} 只有 {23-diff} 个值, 补了 {diff} 个0在前。")
                     shape_data_list.append(current_values)
                     current_values = []
@@ -122,7 +125,14 @@ def load_shape_features_inorder(
     return sgRNA_df
 
 def load_binding_free_energy_inorder(sgRNA_df, dataset, dataset_type):
+    """
+    从 'bedfeatures/{dataset}/{dataset_type}/binding_free_energy_only.tsv' 中
+    顺序加载 binding_free_energy (CRISPRoff_score)，第一行是标题 (CRISPRoff_score),
+    后面的每行对应一个数值。
 
+    前提: 行数(除去首行标题) == len(sgRNA_df) 。
+    加载后在 df 中新建列 'binding_free_energy'，每行一个 float 值。
+    """
     file_path = f'./bedfeatures/{dataset}/{dataset_type}/binding_free_energy_only.tsv'
     if not os.path.exists(file_path):
         print(f"警告: binding_free_energy文件 {file_path} 不存在，跳过。")
@@ -155,11 +165,16 @@ def load_binding_free_energy_inorder(sgRNA_df, dataset, dataset_type):
     # 检查行数是否与 sgRNA_df 对齐
     if len(vals) != len(sgRNA_df):
         print(f"警告: binding_free_energy条数 ({len(vals)}) 与 sgRNA_df行数 ({len(sgRNA_df)}) 不一致。")
+        # 你可以决定 raise Error 或是用 min(...) 长度来合并
+        # 这里先只打印警告
+        # raise ValueError("行数不匹配，无法按顺序对齐。")
 
+    # 若一行都没加载到, 返回
     if not vals:
         print(f"警告: {file_path} 未解析到任何 binding_free_energy 数值.")
         return sgRNA_df
 
+    # 将其写入一列
     sgRNA_df['binding_free_energy'] = vals
 
     return sgRNA_df
@@ -194,7 +209,7 @@ def unify_DNA_shape_columns(df, shape_features):
         df.drop(columns=col_names, inplace=True, errors='ignore')
         
     return df
-
+'''
 def unify_misc_features(df, ignore_cols=('sgRNA','Sc','DNA_shape')):
     """
     将除 ignore_cols 外的所有标量列合并成1D数组 => df['misc']。
@@ -209,7 +224,55 @@ def unify_misc_features(df, ignore_cols=('sgRNA','Sc','DNA_shape')):
 
     df['misc'] = df.apply(row_to_1d, axis=1)
     return df
+'''
+def unify_misc_features(df,
+                        ignore_cols=('sgRNA','Sc','DNA_shape'),
+                        vec_col='misc',
+                        name_col='misc_names'):
+    """
+    将标量特征压成 ndarray 存 vec_col，同时在 name_col
+    存 ['ATAC','CPG', …] 这一串名字，方便后续解释。
+    """
+    print("正在整合其余特征 →", vec_col, "/", name_col)
 
+    all_cols  = set(df.columns)
+    exclude   = set(ignore_cols)
+    used_cols = sorted(list(all_cols - exclude))
+
+    # 每行一个 ndarray
+    df[vec_col] = df.apply(lambda r: r[used_cols].to_numpy(dtype=float), axis=1)
+    # 只需存一次名字（所有行一样），这里直接放整列
+    df[name_col] = [used_cols] * len(df)
+    return df
+import os, pickle, hashlib, json, inspect
+
+def cache_pickle(func):
+    """
+    将 func(dataset, split) 的返回值保存到 .pkl；
+    下次调用若缓存已存在则直接读取。
+    """
+    def wrapper(dataset, split):
+        cache_dir = "./cache_df"
+        os.makedirs(cache_dir, exist_ok=True)
+
+        # 用函数名+参数生成唯一文件名
+        key = f"{func.__name__}_{dataset}_{split}.pkl"
+        cache_path = os.path.join(cache_dir, key)
+
+        if os.path.exists(cache_path):
+            with open(cache_path, "rb") as f:
+                print(f"[cache] load {cache_path}")
+                return pickle.load(f)
+
+        # 真正加载 & 处理
+        df = func(dataset, split)
+        with open(cache_path, "wb") as f:
+            pickle.dump(df, f, protocol=pickle.HIGHEST_PROTOCOL)
+            print(f"[cache] save {cache_path}")
+        return df
+    return wrapper
+
+#@cache_pickle
 def load_data_func_final(dataset,k):
     train_x, test_x, train_y, test_y= load_data(dataset)
     if k == "train":
@@ -252,7 +315,7 @@ def load_data_func_final(dataset,k):
     for feat in shape_features:
         sgRNA_df = load_shape_features_inorder(sgRNA_df, dataset, k, feat, lines_per_sgRNA=1)
     
-    sgRNA_df.fillna(0, inplace=True)
+    sgRNA_df.fillna(-1, inplace=True)
     # 4.1. 将 {feat}_feat1..23 => stack => (23,5) => df['DNA_shape']
     sgRNA_df = unify_DNA_shape_columns(sgRNA_df, shape_features)
 
@@ -264,7 +327,7 @@ def load_data_func_final(dataset,k):
     print(f"DNA_shape列类型: {sgRNA_df['DNA_shape'].dtype}")
     print(f"misc列类型: {sgRNA_df['misc'].dtype}")
 
-    print("特征整合完成。")
+    print("特征整合完成。可以进行train_test_split等操作并在TF里使用。")
     
     return sgRNA_df
     # df.to_pickle(f'combined_{dataset}_{k}.pkl')
