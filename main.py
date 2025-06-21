@@ -16,14 +16,9 @@ from read import *
 from load_data_func import *
 import matplotlib.pyplot as plt
 from tensorflow.keras.utils import plot_model
-#####################
-#  1) 数据准备部分  #
-#####################
+
 def ATCG_df(seq):
-    """
-    自定义的转换函数: 将 sgRNA 序列(23nt) 转为 (23,4,1) 的 one-hot。
-    假设A->[1,0,0,0], T->[0,1,0,0], G->[0,0,1,0], C->[0,0,0,1].
-    """
+
     mapping = {'A':0, 'C':1, 'G':2, 'T':3}
     arr = np.zeros((23,4), dtype=np.float32)
     seq = seq.upper()
@@ -81,17 +76,14 @@ def prepare_5branches_from_df(df):
     x5_nodes = np.concatenate([x1_reshaped, x3], axis=-1)  # (N,23,9)
 
     # Branch5_adj: adjacency matrices for GNN
-    # 添加顺序连接 (1-2, 2-3, ...,22-23) 到 Sc 矩阵
+
     x5_adj = []
     for adj in x2:
-        # 创建顺序连接的邻接矩阵
         sequential_adj = np.zeros_like(adj)
         for i in range(22):
             sequential_adj[i, i+1] = 1
             sequential_adj[i+1, i] = 1
-        # 合并 Sc 矩阵和顺序连接
         combined_adj = adj + sequential_adj
-        # 确保邻接矩阵是二值的（如果有多条边）
         combined_adj = np.where(combined_adj > 0, 1, 0)
         x5_adj.append(combined_adj)
     x5_adj = np.stack(x5_adj, axis=0)  # (N,23,23)
@@ -99,15 +91,7 @@ def prepare_5branches_from_df(df):
     return x1, x2, x3, x4, x5_nodes, x5_adj
 
 def normalize_adjacency(A):
-    """
-    归一化邻接矩阵: \hat{A} = D^{-0.5} * A * D^{-0.5}
-    
-    参数:
-    A: Tensor，形状为 (batch_size, N, N)
-    
-    返回:
-    归一化后的邻接矩阵，形状为 (batch_size, N, N)
-    """
+
     degrees = tf.reduce_sum(A, axis=-1)  # 计算每个节点的度，形状为 (batch_size, N)
     degrees_inv_sqrt = tf.math.pow(degrees, -0.5)  # D^{-0.5}
     degrees_inv_sqrt = tf.where(tf.math.is_inf(degrees_inv_sqrt), tf.zeros_like(degrees_inv_sqrt), degrees_inv_sqrt)  # 处理度为0的情况
@@ -120,9 +104,6 @@ def normalize_adjacency(A):
 
     return A_normalized
 
-#####################
-#  2) 模型部分      #
-#####################
 
 def cross_attention(x,y,num_splits=4,encode_dim=128):
     x = tf.reshape(x, (-1, num_splits, encode_dim // num_splits))  
@@ -190,17 +171,7 @@ def AFF_block_1d(x, y, reduction=16, name=None):
     return z  # (B,L,C)
 
 def CrisprFusion():
-    """
-    五分支模型的实现，包含：
-      - Branch1: (23,4,1) 序列 One-Hot 编码 + CNN
-      - Branch2: (23,23) 矩阵特征 + 空间注意力 + 多尺度 CNN
-      - Branch3: (23,5) DNA shape + Transformer
-      - Branch4: (16,) 标量序列 + Dense layers
-      - Branch5: (23,9) node_features + (23,23) adjacency for GNN
-    
-    最后通过直接拼接五个分支的特征来进行特征融合，输出预测结果。
-    """
-    
+
     # --- Branch 1: One-Hot CNN (23,4,1)
     input1 = Input(shape=(23,4,1), name="branch1_onehot")
     conv1_1 = Conv2D(128, (1,1), padding='same', activation='relu', name="branch1_conv1_1")(input1)
@@ -301,8 +272,7 @@ def CrisprFusion():
     
     #att_conc_f = Flatten()(att_conc)
     merged_features = concatenate([feature_fusion_flatten,branch5_output], axis=-1)  # (batch_size, 640)
-    #merged_features = concatenate([branch1_output,branch2_output,branch3_output,branch4_output,branch5_output], axis=-1)
-    # 通过全连接层进行特征融合
+
     x = Dense(256, activation='relu', name="dense7")(merged_features)  # 640 -> 256
     x = Dropout(0.2)(x)
     x = Dense(128, activation='relu', name="dense8")(x)  # 256 -> 128
@@ -312,9 +282,6 @@ def CrisprFusion():
     model = Model(inputs=[input1, input2, input3, input4, input5_nodes, input5_adj], outputs=output, name="CrisprFusion_Fusion_with_GNN")
     return model
 
-#####################
-#  3) 5折训练部分   #
-#####################
 def get_spearman(pred, true):
     return stats.spearmanr(pred, true)[0]
 
@@ -322,11 +289,7 @@ def get_spearmanr(pred, true):
     return stats.spearmanr(pred, true)[0]
 
 def train_5fold(train_df, test_df, dataset):
-    """
-    假设 train_df, test_df 中含有 'sgRNA','Sc','DNA_shape','misc','binding_free_energy','label' 等列.
-    做5折CV, 训练后在 test_df 上做预测, 最终spearman.
-    """
-    # 准备train
+
     x1_train, x2_train, x3_train, x4_train, x5_nodes_train, x5_adj_train = prepare_5branches_from_df(train_df)
     # 准备test
     x1_test, x2_test, x3_test, x4_test, x5_nodes_test, x5_adj_test = prepare_5branches_from_df(test_df)
@@ -336,7 +299,7 @@ def train_5fold(train_df, test_df, dataset):
     y_train = np.array(y_train, dtype='float64')
     y_test = np.array(y_test, dtype='float64')
 
-    # KFold 交叉验证
+    # KFold 
     isKF = True # 是否使用 KFold
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
     fold_preds = []
@@ -355,14 +318,12 @@ def train_5fold(train_df, test_df, dataset):
         X5_adj_tr, X5_adj_val = x5_adj_train[tr_idx], x5_adj_train[val_idx]
         y_tr, y_val   = y_train[tr_idx], y_train[val_idx]
         
-        # 定义和编译模型
         model = CrisprFusion()
         optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
         #optimizer = tf.keras.optimizers.SGD(learning_rate=1e-4, momentum=0.9, nesterov=True)
         model.compile(loss='mse', optimizer=optimizer, metrics=['mse','mae'])
         model.summary()
         
-        # 定义回调函数
         es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=35, verbose=1)
         mc = tf.keras.callbacks.ModelCheckpoint(
             model_save_prefix + f'.best.fold{fold}',
@@ -372,7 +333,6 @@ def train_5fold(train_df, test_df, dataset):
             verbose=1
         )
 
-        # 训练模型
         model.fit(
             [X1_tr, X2_tr, X3_tr, X4_tr, X5_nodes_tr, X5_adj_tr],
             y_tr,
@@ -383,7 +343,6 @@ def train_5fold(train_df, test_df, dataset):
             callbacks=[es, mc]
         )
 
-        # 加载最佳模型并预测
         best_model = tf.keras.models.load_model(
             model_save_prefix + f'.best.fold{fold}', 
             compile=False, 
@@ -397,37 +356,21 @@ def train_5fold(train_df, test_df, dataset):
     spearman_score = get_spearman(mean_pred, y_test)
     return spearman_score
 
-#####################
-#  4) 主脚本入口    #
-#####################
 
 if __name__ == "__main__":
     # 指定数据集
     datasets = ['xCas','eSp','HF1','SpCas9','CRISPRON','HT_Cas9','HypaCas9']  # 或者其他
-    #datasets = ['xCas']  # 仅示例一个数据集
-    #datasets = ['HF1','SpCas9','CRISPRON','HT_Cas9','HypaCas9']
-    #datasets = ['xCas','eSp']
-    datasets=['xCas']
+
     for dataset in datasets:
-        
         iftrain = False
-        ifshap = False  # 移除 Permutation Feature Importance
-        isplot = True
         if iftrain:
             train_df = load_data_func_final(dataset, 'train')
             test_df  = load_data_func_final(dataset, 'test')
             print(f"\n处理数据集: {dataset}")
             print("训练集样本数:", train_df.shape[0])
             print("测试集样本数:", test_df.shape[0])
-            
             score = train_5fold(train_df, test_df, dataset)
             print(f"Dataset {dataset} 5fold Spearman: {score:.4f}")
 
-            restmp = "model/" + dataset + ".npy"
-            res = [222222]
-            res.append(score)
-            c = np.array(res)
-            np.save(restmp, c)
-            print(f"Spearman分数已保存到 {restmp}")
 
 
